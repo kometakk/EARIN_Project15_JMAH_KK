@@ -1,0 +1,27 @@
+,Patient 1,Patient 2,Patient 3,Patient 4,Patient 5
+Patient ID,BMW7812,CZE1114,BNI9906,JLN3497,GFO8847
+Age,67,21,21,84,66
+Sex,Male,Male,Female,Male,Male
+Cholesterol,208,389,324,383,318
+Blood Pressure,158/88,165/93,174/99,163/100,91/88
+Heart Rate,72,98,72,73,93
+Diabetes,0,1,1,1,1
+Family History,0,1,0,1,1
+Smoking,1,1,0,1,1
+Obesity,0,1,0,0,1
+Alcohol Consumption,0,1,0,1,0
+Exercise Hours Per Week,4.168188835442079,1.8132416178634456,2.0783529861178884,9.82812959348533,5.804298820315434
+Diet,Average,Unhealthy,Healthy,Average,Unhealthy
+Previous Heart Problems,0,1,1,1,1
+Medication Use,0,0,1,0,0
+Stress Level,9,1,9,9,6
+Sedentary Hours Per Day,6.61500145291406,4.963458839757678,9.463425838029828,7.648980824461007,1.5148209264291386
+Income,261404,285768,235282,125640,160555
+BMI,31.2512327252954,27.1949733519874,28.176570683909876,36.464704293082846,21.809144180619757
+Triglycerides,286,235,587,378,231
+Physical Activity Days Per Week,0,1,4,3,1
+Sleep Hours Per Day,6,7,4,4,5
+Country,Argentina,Canada,France,Canada,Thailand
+Continent,South America,North America,Europe,North America,Asia
+Hemisphere,Southern Hemisphere,Northern Hemisphere,Northern Hemisphere,Northern Hemisphere,Northern Hemisphere
+Heart Attack Risk,0,0,0,0,0
