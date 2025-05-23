@@ -13,7 +13,7 @@ from sklearn.svm import SVC as SupportVectorMachineClassifier
 from sklearn.naive_bayes import GaussianNB
 
 from sklearn.model_selection import cross_val_score
-from sklearn.metrics import accuracy_score, classification_report
+from sklearn.metrics import accuracy_score, recall_score, precision_score, confusion_matrix
 
 import random
 import numpy as np
@@ -113,19 +113,57 @@ def train_models(X, y):
     rf_clssf.fit(X_train, y_train)
     gauss_naiveb.fit(X_train_scaled, y_train)
 
-    predictions_log_regr = log_regr.predict(X_test_scaled)
-    predictions_dec_tree = dec_tree.predict(X_test)
-    predictions_svm_clssf = svm_clssf.predict(X_test_scaled)
-    predictions_rf_clssf = rf_clssf.predict(X_test)
-    predictions_gauss_naiveb = gauss_naiveb.predict(X_test_scaled)
-    predictions_random_guessing = np.array(random.choices([0, 1], k=len(y_test)))
+    y_log_regr = log_regr.predict(X_test_scaled)
+    y_dec_tree = dec_tree.predict(X_test)
+    y_svm_clssf = svm_clssf.predict(X_test_scaled)
+    y_rf_clssf = rf_clssf.predict(X_test)
+    y_gauss_naiveb = gauss_naiveb.predict(X_test_scaled)
+    random.seed(42)
+    y_random_guessing = np.array(random.choices([0, 1], k=len(y_test)))
 
-    print("Logistic Regression Accuracy:", accuracy_score(y_test, predictions_log_regr)*100, "%")
-    print("Decision Tree Accuracy:", accuracy_score(y_test, predictions_dec_tree)*100, "%")
-    print("SVM Classifier Accuracy:", accuracy_score(y_test, predictions_svm_clssf)*100, "%")
-    print("Random Forest Accuracy:", accuracy_score(y_test, predictions_rf_clssf)*100, "%")
-    print("Gaussian Naive Bayes Accuracy:", accuracy_score(y_test, predictions_gauss_naiveb)*100, "%")
-    print("Random Guessing Accuracy:", accuracy_score(y_test, predictions_random_guessing)*100, "%")
+    # y columns:
+    # y_log_regr, y_dec_tree, y_svm_clssf, y_rf_clssf, y_gauss_naiveb, y_random_guessing
+    model_results = np.array([y_log_regr, y_dec_tree, y_svm_clssf, y_rf_clssf, y_gauss_naiveb, y_random_guessing])
+    model_names = ['Logistic Regression', 'Decision Tree', 'SVM Classifier', 'Random Forest', 'Gaussian NB', 'Random Guessing Classifier']
+    model_results_accuracies = []
+    model_results_precision = []
+    model_results_recall = []
+    model_results_conf_matrix = []
+    for i in range(len(model_results)):
+        model_results_accuracies.append(accuracy_score(y_test, model_results[i]))
+        model_results_precision.append(precision_score(y_test, model_results[i]))
+        model_results_recall.append(recall_score(y_test, model_results[i]))
+        model_results_conf_matrix.append(confusion_matrix(y_test, model_results[i]))
+        print(f"{model_names[i]} results: {model_results[i]}")
+    output_file = open("model_metrics_scores.txt", "w")
+    # confusion_matrix[actual][predicted]
+
+    column_names = ["Model name", "Accuracy", "Precision", "Recall", "CM TrueNeg", "CM FalsePos", "CM FalseNeg", "CM TruePos"]
+    output_string = ""
+    for i in range(len(column_names)):
+        output_string += column_names[i]
+        if(i != len(column_names)-1):
+            output_string += ","
+    output_string += "\n"
+    output_file.write(output_string)
+
+    for i in range(len(model_results)):
+        output_string = ""
+        output_string += str(model_names[i]) + ","
+        output_string += str(model_results_accuracies[i]) + ","
+        output_string += str(model_results_precision[i]) + ","
+        output_string += str(model_results_recall[i]) + ","
+        output_string += str(model_results_conf_matrix[i][0][0]) + ","
+        output_string += str(model_results_conf_matrix[i][0][1]) + ","
+        output_string += str(model_results_conf_matrix[i][1][0]) + ","
+        output_string += str(model_results_conf_matrix[i][1][1]) + "\n"
+        output_file.write(output_string)
+    output_file.close()
+        
+
+    
+
+
 
 if __name__ == '__main__':
     data = load_patient_data()
