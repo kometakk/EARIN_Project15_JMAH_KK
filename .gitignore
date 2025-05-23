@@ -3,3 +3,5 @@
 
 ## Jupyter notebooks
 *.ipynb
+
+/sklearn-env
