@@ -43,13 +43,10 @@ def clear_pacient_data(pacient_data):
     country_dict_index = 0
 
     for row in pacient_data:
-        # Convert sex to binary
         is_male = 1 if row['Sex'].lower() == 'male' else 0
 
-        # Split blood pressure
         systolic, diastolic = map(int, row['Blood_Pressure'].split('/'))
 
-        # Encode diet (basic encoding; can be one-hot or ordinal based on context)
         diet_map = {'Healthy': 2, 'Average': 1, 'Unhealthy': 0}
         diet = diet_map.get(row['Diet'], -1)
 
@@ -59,7 +56,6 @@ def clear_pacient_data(pacient_data):
             country_dict_index += 1
         this_country_index = country_dict[country]
 
-        # Create feature vector
         X_row = [
             row['Age'],
             is_male,
@@ -91,8 +87,7 @@ def clear_pacient_data(pacient_data):
         X_list.append(X_row)
         y_list.append(y_row)
 
-    # Convert to numpy arrays
-    X = np.array(X_list, dtype=object)  # dtype=object to allow mixed types
+    X = np.array(X_list, dtype=object)
     y = np.array(y_list)
 
     return X, y

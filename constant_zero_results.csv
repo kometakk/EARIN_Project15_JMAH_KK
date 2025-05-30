@@ -1,0 +1,2 @@
+Accuracy,Precision,Recall,CM TrueNeg,CM FalsePos,CM FalseNeg,CM TruePos
+0.6417569880205363,0.0,0.0,1125,0,628,0
