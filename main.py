@@ -17,6 +17,7 @@ from sklearn.metrics import accuracy_score, recall_score, precision_score, confu
 
 import random
 import numpy as np
+import csv
 from io import StringIO
 
 def load_patient_data():
@@ -42,13 +43,10 @@ def clear_pacient_data(pacient_data):
     country_dict_index = 0
 
     for row in pacient_data:
-        # Convert sex to binary
         is_male = 1 if row['Sex'].lower() == 'male' else 0
 
-        # Split blood pressure
         systolic, diastolic = map(int, row['Blood_Pressure'].split('/'))
 
-        # Encode diet (basic encoding; can be one-hot or ordinal based on context)
         diet_map = {'Healthy': 2, 'Average': 1, 'Unhealthy': 0}
         diet = diet_map.get(row['Diet'], -1)
 
@@ -58,7 +56,6 @@ def clear_pacient_data(pacient_data):
             country_dict_index += 1
         this_country_index = country_dict[country]
 
-        # Create feature vector
         X_row = [
             row['Age'],
             is_male,
@@ -90,8 +87,7 @@ def clear_pacient_data(pacient_data):
         X_list.append(X_row)
         y_list.append(y_row)
 
-    # Convert to numpy arrays
-    X = np.array(X_list, dtype=object)  # dtype=object to allow mixed types
+    X = np.array(X_list, dtype=object)
     y = np.array(y_list)
 
     return X, y
@@ -162,13 +158,350 @@ def train_models(X, y):
         
 
     
+def train_logistic_regression_with_grid_search(X, y, output_csv_path="./log_reg_trainings.csv"):
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=0.2, random_state=42
+    )
+    scaler = StandardScaler()
+    X_train_scaled = scaler.fit_transform(X_train)
+    X_test_scaled = scaler.transform(X_test)
 
+    param_grid = {
+        'C': [0.01, 0.1, 1, 10, 100],
+        'penalty_solver': [
+            ('l1', 'liblinear'),
+            ('l1', 'saga'),
+            ('l2', 'liblinear'),
+            ('l2', 'lbfgs'),
+        ],
+        'max_iter': [100, 200, 500],
+        'class_weight': [None, 'balanced']
+    }
+
+    headers = [
+        "C", "Penalty", "Solver", "Max iterations",
+        "Accuracy", "Precision", "Recall",
+        "CM TrueNeg", "CM FalsePos", "CM FalseNeg", "CM TruePos"
+    ]
+    with open(output_csv_path, "w", newline="") as csvfile:
+        writer = csv.writer(csvfile)
+        writer.writerow(headers)
+
+        for c in param_grid['C']:
+            for penalty, solver in param_grid['penalty_solver']:
+                for max_iter in param_grid['max_iter']:
+                    for class_weight in param_grid['class_weight']:
+                        try:
+                            model = LogisticRegression(
+                                C=c,
+                                penalty=penalty,
+                                solver=solver,
+                                max_iter=max_iter,
+                                random_state=42,
+                                class_weight='balanced'
+                            )
+                            model.fit(X_train_scaled, y_train)
+                            y_pred = model.predict(X_test_scaled)
+
+                            acc = accuracy_score(y_test, y_pred)
+                            prec = precision_score(y_test, y_pred, zero_division=0)
+                            rec = recall_score(y_test, y_pred, zero_division=0)
+                            cm = confusion_matrix(y_test, y_pred).ravel()
+
+                            row = [c, penalty, solver, max_iter, acc, prec, rec] + list(cm)
+                            writer.writerow(row)
+
+                        except Exception as e:
+                            print(f"Skipped combination (C={c}, penalty={penalty}, solver={solver}, max_iter={max_iter}) due to error: {e}")
+
+                    
+def train_decision_tree_with_grid_search(X, y, output_csv_path="./decision_tree_trainings.csv"):
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=0.2, random_state=42, stratify=y
+    )
+    scaler = StandardScaler()
+    X_train_scaled = scaler.fit_transform(X_train)
+    X_test_scaled = scaler.transform(X_test)
+
+    param_grid = {
+        'criterion': ['gini', 'entropy'],
+        'max_depth': [None, 5, 10, 20],
+        'min_samples_split': [2, 5, 10],
+        'min_samples_leaf': [1, 2, 4],
+        'class_weight': [None, 'balanced']
+    }
+
+    headers = [
+        "Criterion", "Max Depth", "Min Samples Split", "Min Samples Leaf", "Class Weight",
+        "Accuracy", "Precision", "Recall",
+        "CM TrueNeg", "CM FalsePos", "CM FalseNeg", "CM TruePos"
+    ]
+    with open(output_csv_path, "w", newline="") as csvfile:
+        writer = csv.writer(csvfile)
+        writer.writerow(headers)
+
+        for criterion in param_grid['criterion']:
+            for max_depth in param_grid['max_depth']:
+                for min_split in param_grid['min_samples_split']:
+                    for min_leaf in param_grid['min_samples_leaf']:
+                        for class_weight in param_grid['class_weight']:
+                            try:
+                                model = DecisionTreeClassifier(
+                                    criterion=criterion,
+                                    max_depth=max_depth,
+                                    min_samples_split=min_split,
+                                    min_samples_leaf=min_leaf,
+                                    class_weight=class_weight,
+                                    random_state=42
+                                )
+                                model.fit(X_train_scaled, y_train)
+                                y_pred = model.predict(X_test_scaled)
+
+                                acc = accuracy_score(y_test, y_pred)
+                                prec = precision_score(y_test, y_pred, zero_division=0)
+                                rec = recall_score(y_test, y_pred, zero_division=0)
+                                cm = confusion_matrix(y_test, y_pred).ravel()
+
+                                row = [
+                                    criterion, max_depth, min_split, min_leaf, class_weight,
+                                    acc, prec, rec
+                                ] + list(cm)
+                                writer.writerow(row)
+
+                            except Exception as e:
+                                print(f"Skipped combination due to error: {e}")
+
+
+def train_svm_with_grid_search(X, y, output_csv_path="./svm_trainings.csv"):
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=0.2, random_state=42, stratify=y
+    )
+    scaler = StandardScaler()
+    X_train_scaled = scaler.fit_transform(X_train)
+    X_test_scaled = scaler.transform(X_test)
+
+    param_grid = {
+        'C': [0.1, 1, 10],
+        'kernel': ['linear', 'rbf', 'poly', 'sigmoid'],
+        'gamma': ['scale', 'auto'],
+        'class_weight': [None, 'balanced']
+    }
+
+    headers = [
+        "C", "Kernel", "Gamma", "Class Weight",
+        "Accuracy", "Precision", "Recall",
+        "CM TrueNeg", "CM FalsePos", "CM FalseNeg", "CM TruePos"
+    ]
+    with open(output_csv_path, "w", newline="") as csvfile:
+        writer = csv.writer(csvfile)
+        writer.writerow(headers)
+
+        for c in param_grid['C']:
+            for kernel in param_grid['kernel']:
+                for gamma in param_grid['gamma']:
+                    for class_weight in param_grid['class_weight']:
+                        try:
+                            model = SupportVectorMachineClassifier(
+                                C=c,
+                                kernel=kernel,
+                                gamma=gamma,
+                                class_weight=class_weight,
+                                random_state=42
+                            )
+                            model.fit(X_train_scaled, y_train)
+                            y_pred = model.predict(X_test_scaled)
+
+                            acc = accuracy_score(y_test, y_pred)
+                            prec = precision_score(y_test, y_pred, zero_division=0)
+                            rec = recall_score(y_test, y_pred, zero_division=0)
+                            cm = confusion_matrix(y_test, y_pred).ravel()
+
+                            row = [
+                                c, kernel, gamma, class_weight,
+                                acc, prec, rec
+                            ] + list(cm)
+                            writer.writerow(row)
+
+                        except Exception as e:
+                            print(f"Skipped combination due to error: {e}")
+
+def train_random_forest_with_grid_search(X, y, output_csv_path="./random_forest_trainings.csv"):
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=0.2, random_state=42, stratify=y
+    )
+    scaler = StandardScaler()
+    X_train_scaled = scaler.fit_transform(X_train)
+    X_test_scaled = scaler.transform(X_test)
+
+    param_grid = {
+        'n_estimators': [50, 100, 200],
+        'criterion': ['gini', 'entropy'],
+        'max_depth': [None, 10, 20],
+        'min_samples_split': [2, 5],
+        'min_samples_leaf': [1, 2],
+        'class_weight': [None, 'balanced']
+    }
+
+    headers = [
+        "N Estimators", "Criterion", "Max Depth", "Min Samples Split", "Min Samples Leaf", "Class Weight",
+        "Accuracy", "Precision", "Recall",
+        "CM TrueNeg", "CM FalsePos", "CM FalseNeg", "CM TruePos"
+    ]
+    with open(output_csv_path, "w", newline="") as csvfile:
+        writer = csv.writer(csvfile)
+        writer.writerow(headers)
+
+        for n_estimators in param_grid['n_estimators']:
+            for criterion in param_grid['criterion']:
+                for max_depth in param_grid['max_depth']:
+                    for min_split in param_grid['min_samples_split']:
+                        for min_leaf in param_grid['min_samples_leaf']:
+                            for class_weight in param_grid['class_weight']:
+                                try:
+                                    model = RandomForestClassifier(
+                                        n_estimators=n_estimators,
+                                        criterion=criterion,
+                                        max_depth=max_depth,
+                                        min_samples_split=min_split,
+                                        min_samples_leaf=min_leaf,
+                                        class_weight=class_weight,
+                                        random_state=42,
+                                        n_jobs=-1
+                                    )
+                                    model.fit(X_train_scaled, y_train)
+                                    y_pred = model.predict(X_test_scaled)
+
+                                    acc = accuracy_score(y_test, y_pred)
+                                    prec = precision_score(y_test, y_pred, zero_division=0)
+                                    rec = recall_score(y_test, y_pred, zero_division=0)
+                                    cm = confusion_matrix(y_test, y_pred).ravel()
+
+                                    row = [
+                                        n_estimators, criterion, max_depth, min_split, min_leaf, class_weight,
+                                        acc, prec, rec
+                                    ] + list(cm)
+                                    writer.writerow(row)
+
+                                except Exception as e:
+                                    print(f"Skipped combination due to error: {e}")
+
+def train_gaussian_nb_with_grid_search(X, y, output_csv_path="./gaussian_nb_trainings.csv"):
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=0.2, random_state=42, stratify=y
+    )
+    scaler = StandardScaler()
+    X_train_scaled = scaler.fit_transform(X_train)
+    X_test_scaled = scaler.transform(X_test)
+
+    param_grid = {
+        'var_smoothing': np.logspace(-12, -6, 7)
+    }
+
+    headers = [
+        "Var Smoothing",
+        "Accuracy", "Precision", "Recall",
+        "CM TrueNeg", "CM FalsePos", "CM FalseNeg", "CM TruePos"
+    ]
+    with open(output_csv_path, "w", newline="") as csvfile:
+        writer = csv.writer(csvfile)
+        writer.writerow(headers)
+
+        for var_smoothing in param_grid['var_smoothing']:
+            try:
+                model = GaussianNB(var_smoothing=var_smoothing)
+                model.fit(X_train_scaled, y_train)
+                y_pred = model.predict(X_test_scaled)
+
+                acc = accuracy_score(y_test, y_pred)
+                prec = precision_score(y_test, y_pred, zero_division=0)
+                rec = recall_score(y_test, y_pred, zero_division=0)
+                cm = confusion_matrix(y_test, y_pred).ravel()
+
+                row = [
+                    var_smoothing,
+                    acc, prec, rec
+                ] + list(cm)
+                writer.writerow(row)
+
+            except Exception as e:
+                print(f"Skipped var_smoothing={var_smoothing} due to error: {e}")
+
+def evaluate_random_guessing(X, y, output_csv_path="./random_guessing_results.csv"):
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=0.2, random_state=42, stratify=y
+    )
+    scaler = StandardScaler()
+    X_train_scaled = scaler.fit_transform(X_train)
+    X_test_scaled = scaler.transform(X_test)
+
+    rng = np.random.default_rng(seed=42)
+    y_pred = rng.integers(0, 2, size=len(y_test))
+
+    acc = accuracy_score(y_test, y_pred)
+    prec = precision_score(y_test, y_pred, zero_division=0)
+    rec = recall_score(y_test, y_pred, zero_division=0)
+    cm = confusion_matrix(y_test, y_pred).ravel()
+
+    headers = ["Accuracy", "Precision", "Recall", "CM TrueNeg", "CM FalsePos", "CM FalseNeg", "CM TruePos"]
+    with open(output_csv_path, "w", newline="") as csvfile:
+        writer = csv.writer(csvfile)
+        writer.writerow(headers)
+        writer.writerow([acc, prec, rec] + list(cm))
+
+def evaluate_constant_zero(X, y, output_csv_path="./constant_zero_results.csv"):
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=0.2, random_state=42, stratify=y
+    )
+    y_pred = np.zeros_like(y_test)
+
+    acc = accuracy_score(y_test, y_pred)
+    prec = precision_score(y_test, y_pred, zero_division=0)
+    rec = recall_score(y_test, y_pred, zero_division=0)
+    cm = confusion_matrix(y_test, y_pred).ravel()
+
+    headers = ["Accuracy", "Precision", "Recall", "CM TrueNeg", "CM FalsePos", "CM FalseNeg", "CM TruePos"]
+    with open(output_csv_path, "w", newline="") as csvfile:
+        writer = csv.writer(csvfile)
+        writer.writerow(headers)
+        writer.writerow([acc, prec, rec] + list(cm))
+
+def evaluate_constant_one(X, y, output_csv_path="./constant_one_results.csv"):
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=0.2, random_state=42, stratify=y
+    )
+    y_pred = np.ones_like(y_test)
+
+    acc = accuracy_score(y_test, y_pred)
+    prec = precision_score(y_test, y_pred, zero_division=0)
+    rec = recall_score(y_test, y_pred, zero_division=0)
+    cm = confusion_matrix(y_test, y_pred).ravel()
+
+    headers = ["Accuracy", "Precision", "Recall", "CM TrueNeg", "CM FalsePos", "CM FalseNeg", "CM TruePos"]
+    with open(output_csv_path, "w", newline="") as csvfile:
+        writer = csv.writer(csvfile)
+        writer.writerow(headers)
+        writer.writerow([acc, prec, rec] + list(cm))
 
 
 if __name__ == '__main__':
+    ### Most recent:
     data = load_patient_data()
-    #print(data[0])
+    print(data[0])
     X, y = clear_pacient_data(data)
-    print(X[len(X)-1])
-    print(y[len(X)-1])
-    train_models(X, y)
+
+    ##train_logistic_regression_with_grid_search(X, y)
+    ##train_decision_tree_with_grid_search(X, y)
+    ##train_svm_with_grid_search(X, y)
+    ##train_random_forest_with_grid_search(X, y)
+    ##train_gaussian_nb_with_grid_search(X, y)
+    ##evaluate_random_guessing(X, y)
+    ##evaluate_constant_zero(X, y)
+    ##evaluate_constant_one(X, y)
+
+    ### Old:
+    #data = load_patient_data()
+    #print(data[0])
+    #X, y = clear_pacient_data(data)
+    #print(X[len(X)-1])
+    #print(y[len(X)-1])
+    #train_models(X, y)
