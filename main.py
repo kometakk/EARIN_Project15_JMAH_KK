@@ -20,7 +20,43 @@ import numpy as np
 import csv
 from io import StringIO
 
-def load_patient_data():
+def load_clear_patient_data_new():
+    # Load the data using genfromtxt
+    data = np.genfromtxt(
+        "./heart.csv",
+        delimiter=",",
+        names=True,      # Use the first line as column names
+        dtype=None,      # Automatically determine data types
+        encoding='utf-8' # Ensure proper string decoding
+    )
+
+    X_list = []
+    y_list = []
+    for row in data:
+        X_list.append(
+            [
+                row['age'],
+                row['sex'],
+                row['cp'],
+                row['trtbps'],
+                row['chol'],
+                row['fbs'],
+                row['restecg'],
+                row['thalachh'],
+                row['exng'],
+                row['oldpeak'],
+                row['slp'],
+                row['caa'],
+                row['thall'],
+            ]
+        )
+        y_list.append(row['output'])
+
+    X = np.array(X_list, dtype=object)
+    y = np.array(y_list)
+    return X, y
+
+def load_patient_data_old():
     # Load the data using genfromtxt
     data = np.genfromtxt(
         "./heart_attack_prediction_dataset.csv",
@@ -35,7 +71,7 @@ def load_patient_data():
 # to
 # X:Age,IsMale,Cholesterol,SystolicPressure,DisatolicPressure,HeartRate,Diabetes,FamilyHistory,Smoking,Obesity,AlcoholConsumption,ExerciseHoursPerWeek,Diet,PreviousHeartProblems,MedicationUse,StressLevels,SedentaryHoursPerDay,Income,BMI,Triglycerides,PhysicalActivityDaysPerWeek,SleepHoursPerDay,Country
 # y:HeartAttackRisk
-def clear_pacient_data(pacient_data):
+def clear_pacient_data_old(pacient_data):
     X_list = []
     y_list = []
 
@@ -482,12 +518,59 @@ def evaluate_constant_one(X, y, output_csv_path="./constant_one_results.csv"):
         writer.writerow(headers)
         writer.writerow([acc, prec, rec] + list(cm))
 
+def feature_importance_rf_clsf(X, y, feature_names=None, output_csv_path="./feature_importances.csv"):
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=0.2, random_state=42, stratify=y
+    )
+    scaler = StandardScaler()
+    X_train_scaled = scaler.fit_transform(X_train)
+
+    model = RandomForestClassifier(
+        n_estimators=100,
+        criterion='gini',
+        max_depth=10,
+        min_samples_split=5,
+        min_samples_leaf=2,
+        class_weight='balanced',
+        random_state=42
+    )
+    model.fit(X_train_scaled, y_train)
+
+    importances = model.feature_importances_
+
+    if feature_names is None:
+        feature_names = [f"feature_{i}" for i in range(X.shape[1])]
+
+    with open(output_csv_path, "w", newline="") as csvfile:
+        writer = csv.writer(csvfile)
+        writer.writerow(["Feature", "Importance"])
+        for name, importance in zip(feature_names, importances):
+            writer.writerow([name, importance])
+
 
 if __name__ == '__main__':
-    ### Most recent:
-    data = load_patient_data()
-    print(data[0])
-    X, y = clear_pacient_data(data)
+    X, y = load_clear_patient_data_new()
+    path_templ = './New results/results_'    
+    train_logistic_regression_with_grid_search(X, y, f'{path_templ}logistic_regression.csv')
+    train_decision_tree_with_grid_search(X, y, f'{path_templ}decision_tree.csv')
+    train_svm_with_grid_search(X, y, f'{path_templ}support_vector_machine.csv')
+    train_random_forest_with_grid_search(X, y, f'{path_templ}random_forest.csv')
+    train_gaussian_nb_with_grid_search(X, y, f'{path_templ}gaussian_naive_bayes.csv')
+    evaluate_random_guessing(X, y, f'{path_templ}random_guessing.csv')
+    evaluate_constant_zero(X, y, f'{path_templ}constant_zero.csv')
+    evaluate_constant_one(X, y, f'{path_templ}constant_one.csv')
+    feature_importance_rf_clsf(
+        X,
+        y,
+        ["age", "sex", "cp", "trtbps", "chol", "fbs", "restecg", "thalachh", "exng", "oldpeak", "slp", "caa", "thall"],
+        f'{path_templ}feature_importances_from_fr_clsf.csv'
+    )
+
+    
+    ### Training on previous trash data:
+    #data = load_patient_data_old()
+    #print(data[0])
+    #X, y = clear_pacient_data_old(data)
 
     ##train_logistic_regression_with_grid_search(X, y)
     ##train_decision_tree_with_grid_search(X, y)
