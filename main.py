@@ -518,11 +518,39 @@ def evaluate_constant_one(X, y, output_csv_path="./constant_one_results.csv"):
         writer.writerow(headers)
         writer.writerow([acc, prec, rec] + list(cm))
 
+def feature_importance_rf_clsf(X, y, feature_names=None, output_csv_path="./feature_importances.csv"):
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=0.2, random_state=42, stratify=y
+    )
+    scaler = StandardScaler()
+    X_train_scaled = scaler.fit_transform(X_train)
+
+    model = RandomForestClassifier(
+        n_estimators=100,
+        criterion='gini',
+        max_depth=10,
+        min_samples_split=5,
+        min_samples_leaf=2,
+        class_weight='balanced',
+        random_state=42
+    )
+    model.fit(X_train_scaled, y_train)
+
+    importances = model.feature_importances_
+
+    if feature_names is None:
+        feature_names = [f"feature_{i}" for i in range(X.shape[1])]
+
+    with open(output_csv_path, "w", newline="") as csvfile:
+        writer = csv.writer(csvfile)
+        writer.writerow(["Feature", "Importance"])
+        for name, importance in zip(feature_names, importances):
+            writer.writerow([name, importance])
+
 
 if __name__ == '__main__':
-    ### Most recent:
     X, y = load_clear_patient_data_new()
-    path_templ = './New results/results_'
+    path_templ = './New results/results_'    
     train_logistic_regression_with_grid_search(X, y, f'{path_templ}logistic_regression.csv')
     train_decision_tree_with_grid_search(X, y, f'{path_templ}decision_tree.csv')
     train_svm_with_grid_search(X, y, f'{path_templ}support_vector_machine.csv')
@@ -531,7 +559,14 @@ if __name__ == '__main__':
     evaluate_random_guessing(X, y, f'{path_templ}random_guessing.csv')
     evaluate_constant_zero(X, y, f'{path_templ}constant_zero.csv')
     evaluate_constant_one(X, y, f'{path_templ}constant_one.csv')
+    feature_importance_rf_clsf(
+        X,
+        y,
+        ["age", "sex", "cp", "trtbps", "chol", "fbs", "restecg", "thalachh", "exng", "oldpeak", "slp", "caa", "thall"],
+        f'{path_templ}feature_importances_from_fr_clsf.csv'
+    )
 
+    
     ### Training on previous trash data:
     #data = load_patient_data_old()
     #print(data[0])
